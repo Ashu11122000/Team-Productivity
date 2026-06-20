@@ -1,0 +1,44 @@
+services:
+
+  postgres:
+    image: postgres:17-alpine
+
+    container_name: team-productivity-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: productivity_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Ashu11122000@
+
+    ports:
+      - "5434:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  nestjs-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: team-productivity-nestjs
+
+    restart: unless-stopped
+
+    depends_on:
+      - postgres
+
+    env_file:
+      - .env
+
+    ports:
+      - "3001:3001"
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+
+volumes:
+  postgres_data:
