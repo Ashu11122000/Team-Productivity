@@ -1,68 +1,78 @@
 {
   "compilerOptions": {
-    /* -------------------------------------------------------------------------- */
-    /* Language and Environment                                                    */
-    /* -------------------------------------------------------------------------- */
     "target": "ES2022",
-    "lib": ["ES2022"],
 
-    /* -------------------------------------------------------------------------- */
-    /* Module System                                                               */
-    /* -------------------------------------------------------------------------- */
     "module": "commonjs",
     "moduleResolution": "node",
 
-    /* -------------------------------------------------------------------------- */
-    /* Output                                                                      */
-    /* -------------------------------------------------------------------------- */
+    "lib": ["ES2022"],
+
     "outDir": "./dist",
+    "rootDir": "./src",
+
     "sourceMap": true,
     "declaration": true,
     "removeComments": true,
-    "incremental": true,
 
-    /* -------------------------------------------------------------------------- */
-    /* Decorators (Required for NestJS)                                            */
-    /* -------------------------------------------------------------------------- */
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
 
-    /* -------------------------------------------------------------------------- */
-    /* Interoperability                                                            */
-    /* -------------------------------------------------------------------------- */
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
 
-    /* -------------------------------------------------------------------------- */
-    /* Strictness                                                                  */
-    /* -------------------------------------------------------------------------- */
     "strict": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": false,
+
     "forceConsistentCasingInFileNames": true,
 
-    /* -------------------------------------------------------------------------- */
-    /* Performance                                                                 */
-    /* -------------------------------------------------------------------------- */
     "skipLibCheck": true,
 
-    /* -------------------------------------------------------------------------- */
-    /* Path Aliases                                                                */
-    /* -------------------------------------------------------------------------- */
-    "baseUrl": "./",
+    "ignoreDeprecations": "6.0",
+
+    "baseUrl": ".",
+
     "paths": {
       "@/*": ["src/*"],
+
       "@common/*": ["src/common/*"],
       "@config/*": ["src/config/*"],
       "@database/*": ["src/database/*"],
-      "@modules/*": ["src/modules/*"],
-      "@shared/*": ["src/shared/*"],
-      "@integrations/*": ["src/integrations/*"]
+
+      "@auth/*": ["src/auth/*"],
+
+      "@tasks/*": ["src/tasks/*"],
+      "@categories/*": ["src/categories/*"],
+      "@tags/*": ["src/tags/*"],
+
+      "@notifications/*": ["src/notifications/*"],
+      "@analytics/*": ["src/analytics/*"],
+      "@activity-logs/*": ["src/activity-logs/*"],
+
+      "@projects/*": ["src/projects/*"],
+      "@teams/*": ["src/teams/*"],
+      "@workspaces/*": ["src/workspaces/*"],
+
+      "@permissions/*": ["src/permissions/*"],
+      "@invitations/*": ["src/invitations/*"],
+
+      "@comments/*": ["src/comments/*"],
+      "@attachments/*": ["src/attachments/*"],
+
+      "@integrations/*": ["src/integrations/*"],
+      "@shared/*": ["src/shared/*"]
     }
   },
 
   "include": ["src/**/*"],
 
-  "exclude": ["node_modules", "dist", "coverage", "test"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
 }
