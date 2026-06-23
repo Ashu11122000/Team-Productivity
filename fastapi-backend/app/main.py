@@ -1,78 +1,115 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 
 from app.core.config import settings
+from app.core.logging import logger
 
-from app.api.routes import auth, note
+from app.api.routes import auth, users, notes, books, health
 
-from app.db.base import Base
-from app.db.session import engine
+# Application Lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application startup/shutdown lifecycle.
 
-from app.models.user import User
-from app.models.note import Note
+    Future:
+    - Redis Connection
+    - Sentry Initialization
+    - Background Workers
+    - Scheduler
+    """
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+    logger.info("Starting Team Productivity Platform FastAPI Service")
 
+    yield
+
+    logger.info("Shutting down Team Productivity Platform FastAPI Service")
+
+# FastAPI Application
 app = FastAPI(
     title="Team Productivity Platform API",
     description="""
-    FastAPI Service
+    FastAPI Identity & Knowledge Service
 
     Responsibilities:
     - Authentication
     - User Management
     - Notes Management
-    - Open Library Integration
-    - Notes → Task Conversion
+    - Books Integration
+    - Refresh Tokens
+    - User Profiles
 
-    Consumed by Next.js Frontend.
+    Consumed by:
+    - Next.js Web Application
+    - Flutter Mobile Application
+
     Shared JWT Authentication with NestJS.
     """,
     version="1.0.0",
     debug=settings.DEBUG,
+    lifespan=lifespan,
+    default_response_class=ORJSONResponse,
 )
 
-# CORS Configuration
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-@app.get("/")
-def root():
+# Root Endpoint
+@app.get("/", tags=["Root"])
+async def root():
     return {
+        "success": True,
         "service": "FastAPI",
         "name": "Team Productivity Platform",
-        "status": "running",
         "version": "1.0.0",
+        "environment": settings.ENVIRONMENT,
+        "status": "running",
     }
 
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy",
-    }
+# API Route Registration
+API_PREFIX = "/api/v1"
 
-# Authentication Routes
+# Health
+app.include_router(
+    health.router,
+    prefix=API_PREFIX,
+    tags=["Health"],
+)
+
+# Authentication
 app.include_router(
     auth.router,
-    prefix="/api/v1",
+    prefix=API_PREFIX,
     tags=["Authentication"],
 )
 
-# Notes Routes
+# Users
 app.include_router(
-    note.router,
-    prefix="/api/v1",
+    users.router,
+    prefix=API_PREFIX,
+    tags=["Users"],
+)
+
+# Notes
+app.include_router(
+    notes.router,
+    prefix=API_PREFIX,
     tags=["Notes"],
+)
+
+# Books
+app.include_router(
+    books.router,
+    prefix=API_PREFIX,
+    tags=["Books"],
 )
