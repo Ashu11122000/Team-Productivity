@@ -1,89 +1,109 @@
-# BaseSettings automatically reads environment variables
-# SettingsConfigDict is used to define configuration behaviors for a BaseSettings model
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
-    Application settings loaded from environment variables.
+    Application configuration for the Team Productivity Platform.
     
-    This configuration is shared across:
-    - Authentication
-    - Notes Module
-    - Open Library Integration
-    - NestJS Service Integration
-    - JWT Security
+    Loads settings from the .env file and makes them available throughout the FastAPI Application.
     """
-    # Application
-    APP_NAME: str = "Team Productivity Platform API"
-    APP_VERSION: str = "v1"
+    APP_NAME: str = "Team Productivity Platform"
+    APP_VERSION: str = "1.0.0"
+    
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     
-    # Server
+    API_V1_PREFIX: str = "/api/v1"
+    
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # Frontend
-    FRONTEND_URL: str = "http://localhost:3000"
+    DATABASE_URL: str
+    DATABASE_ECHO: bool = False
     
-    # Database
-    DB_HOST: str
-    DB_PORT: int
-    DB_NAME: str
-    DB_USER: str
-    DB_PASSWORD: str
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str = "HS256"
     
-    # JWT Authentication
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # Shared JWT metadata for FastAPI + NestJS
     JWT_ISSUER: str = "team-productivity-platform"
-    JWT_AUDIENCE: str = "team-productivity-users"
+    JWT_AUDIENCE: str = "team-productivity-platform-users"
     
-    # NestJS Integration
-    # NestJS owns:
-    # - Tasks
-    # - Categories
-    # - Tags
-    # - Notifications
-    # - Analytics
-    # - Activity Logs
+    BACKEND_CORS_ORIGINS: list[str] = Field(
+        default_factory = lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
     
-    NESTJS_API_URL: str = "http://localhost:3001/api/v1"
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_CACHE_TTL: int = 3600
     
-    # Open Library Integration
+    RATE_LIMIT_DEFAULT: str = "100/minute"
     OPEN_LIBRARY_BASE_URL: str = "https://openlibrary.org"
     
-    # Public Holidays API
-    HOLIDAYS_API_BASE_URL: str = (
-        "https://date.nager.at/api/v3"
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = "noreply@teamproductivity.com"
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+    
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 30
+    EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+    
+    LOG_LEVEL: str = "INFO"
+    LOG_JSON: bool = False
+    
+    SENTRY_DSN: str = ""
+    
+    DEFAULT_PAGE_SIZE: int = 20
+    MAX_PAGE_SIZE: int = 100
+    
+    MAX_UPLOAD_SIZE_MB: int = 25
+    
+    ALLOWED_IMAGE_EXTENSIONS: list[str] = Field(
+        default_factory = lambda: [
+            "jpg",
+            "jpeg",
+            "png",
+            "webp",
+            "svg",
+        ]
     )
     
-    # API Configuration
-    API_V_PREFIX: str = "/api/v1"
+    ALLOWED_DOCUMENT_EXTENSIONS: list[str] = Field(
+        default_factory = lambda: [
+            "pdf",
+            "doc",
+            "docx",
+            "xls",
+            "xlsx",
+            "ppt",
+            "pptx",
+        ]
+    )
     
-    # Environment Configuration
+    BCRYPT_ROUNDS: int = 12
+    
+    SECURE_COOKIES: bool = False
+    SESSION_COOKIE_NAME: str = "tpp_session"
+    
+    ENABLE_REGISTRATION: bool = True
+    ENABLE_BOOKS_API: bool = True
+    ENABLE_EMAIL_VERIFICATION: bool = True
+    ENABLE_NOTIFICATIONS: bool = False
+    ENABLE_ANALYTICS: bool = False
+    
+    WEB_APP_URL: str = "http://localhost:3000"
+    MOBILE_APP_SCHEME: str = "tpp://"
+    
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=True,
+        env_file = ".env",
+        env_file_encoding = "utf-8",
+        extra = "ignore",
     )
     
-    # Computed Database URL
-    @property
-    def DATABASE_URL(self) -> str:
-        """
-        SQLAlchemy connection string (Database URL) that SQLAlchemy uses to connect to database
-        """
-        return (
-            f"postgresql://{self.DB_USER}:"
-            f"{self.DB_PASSWORD}@"
-            f"{self.DB_HOST}:"
-            f"{self.DB_PORT}/"
-            f"{self.DB_NAME}"
-        )
-        
 settings = Settings()
