@@ -1,60 +1,43 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
+from app.api.routes import auth, books, health, notes, users
 from app.core.config import settings
-from app.core.logging import logger
+from app.lifespan import lifespan
 
-from app.api.routes import auth, users, notes, books, health
+from app.middleware.request_logging import RequestLoggingMiddleware
+from app.middleware.response_time import ResponseTimeMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
-# Application Lifespan
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Application startup/shutdown lifecycle.
-
-    Future:
-    - Redis Connection
-    - Sentry Initialization
-    - Background Workers
-    - Scheduler
-    """
-
-    logger.info("Starting Team Productivity Platform FastAPI Service")
-
-    yield
-
-    logger.info("Shutting down Team Productivity Platform FastAPI Service")
-
-# FastAPI Application
 app = FastAPI(
     title="Team Productivity Platform API",
     description="""
-    FastAPI Identity & Knowledge Service
+FastAPI Identity & Knowledge Service
 
-    Responsibilities:
-    - Authentication
-    - User Management
-    - Notes Management
-    - Books Integration
-    - Refresh Tokens
-    - User Profiles
+Responsibilities
 
-    Consumed by:
-    - Next.js Web Application
-    - Flutter Mobile Application
+• Authentication
+• User Management
+• Notes Management
+• Books Integration
+• Refresh Tokens
+• User Profiles
 
-    Shared JWT Authentication with NestJS.
-    """,
-    version="1.0.0",
+Consumed By
+
+• Next.js Web Application
+• Flutter Mobile Application
+
+Shared JWT Authentication with NestJS.
+""",
+    version=settings.APP_VERSION,
     debug=settings.DEBUG,
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
 )
 
-# CORS
+# Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -64,50 +47,49 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(ResponseTimeMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Root Endpoint
 @app.get("/", tags=["Root"])
 async def root():
     return {
         "success": True,
         "service": "FastAPI",
-        "name": "Team Productivity Platform",
-        "version": "1.0.0",
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
         "status": "running",
     }
 
-# API Route Registration
-API_PREFIX = "/api/v1"
+# API Routes
+API_PREFIX = settings.API_V1_PREFIX
 
-# Health
 app.include_router(
     health.router,
     prefix=API_PREFIX,
     tags=["Health"],
 )
 
-# Authentication
 app.include_router(
     auth.router,
     prefix=API_PREFIX,
     tags=["Authentication"],
 )
 
-# Users
 app.include_router(
     users.router,
     prefix=API_PREFIX,
     tags=["Users"],
 )
 
-# Notes
 app.include_router(
     notes.router,
     prefix=API_PREFIX,
     tags=["Notes"],
 )
 
-# Books
 app.include_router(
     books.router,
     prefix=API_PREFIX,
