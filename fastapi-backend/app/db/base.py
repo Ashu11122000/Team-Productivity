@@ -2,13 +2,20 @@
     Base SQLAlchemy model for the Team Productivity Platform.
     
     Responsibilities:
-    - Acts as the root ORM model for all database entities
-    - Provides shared SQLAlchemy metadata
-    - Used by Alembic migrations
+    - Provides the root declarative base for all SQLAlchemy ORM Models. 
+    - Provides shared SQLAlchemy metadata across all database entities.
+    - Used Alembic for database migrations
+    - Serves as the foundation for all FastAPI-owned database models
+
     - Shared across:
         - Authentication
         - Users
         - Notes
+        - Refresh Tokens
+        - Books References
+        - User Preferences
+        - Profiles
+        - Sessions
         - Future FastAPI modules
     
     Ownership:
