@@ -38,6 +38,7 @@ SessionLocal = sessionmaker(
     autocommit = False,
     autoflush = False,
     expire_on_commit = False,
+    future = True
 )
 
 def get_db() -> Generator[Session, None, None]:
