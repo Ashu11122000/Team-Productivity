@@ -1,30 +1,15 @@
 """
 User-related Pydantic schemas.
 
-This module defines request and response schemas used by:
-
+Responsibilities:
+- User registration
 - Authentication
-- User Management
-- JWT Authentication
-- Refresh Tokens
-- Session Management
-- Email Verification
-- Password Reset
-- RBAC
-- User Analytics
-
-Architecture:
-
-API Routes
-     │
-     ▼
-Services
-     │
-     ▼
-Repositories
-     │
-     ▼
-SQLAlchemy Models
+- JWT payloads
+- User profile responses
+- Password reset
+- Email verification
+- Refresh tokens
+- Logout
 """
 
 from __future__ import annotations
@@ -36,37 +21,25 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 # ==========================================================
-# Base User Schema
+# User Registration
 # ==========================================================
 
-
-class UserBase(BaseModel):
+class UserCreate(BaseModel):
     """
-    Base schema shared by multiple user request models.
+    Request schema for user registration.
     """
 
     email: EmailStr = Field(
         ...,
-        description="Unique user email address.",
+        description="Unique user email address",
         examples=["john.doe@example.com"],
     )
-
-
-# ==========================================================
-# User Registration
-# ==========================================================
-
-
-class UserCreate(UserBase):
-    """
-    Request schema for user registration.
-    """
 
     password: str = Field(
         ...,
         min_length=8,
         max_length=128,
-        description="User password.",
+        description="User password",
         examples=["StrongPassword123!"],
     )
 
@@ -75,403 +48,100 @@ class UserCreate(UserBase):
 # User Login
 # ==========================================================
 
+class UserLogin(BaseModel):
+    """
+    Login request.
+    """
 
-class UserLogin(UserBase):
-    """
-    Request schema for authenticating a user.
-    """
+    email: EmailStr = Field(
+        ...,
+        description="Registered email",
+        examples=["john.doe@example.com"],
+    )
 
     password: str = Field(
         ...,
         min_length=8,
         max_length=128,
-        description="User password.",
-    )
-
-    remember_me: bool = Field(
-        default=False,
-        description="Whether to keep the user logged in.",
+        description="User password",
     )
 
 
 # ==========================================================
-# JWT Token Response
+# JWT Responses
 # ==========================================================
-
 
 class TokenResponse(BaseModel):
     """
-    JWT authentication response.
-
-    Returned after:
-
-    - Login
-    - Refresh token rotation
+    Authentication response.
     """
 
-    access_token: str = Field(
-        ...,
-        description="JWT access token.",
-    )
+    access_token: str
 
-    refresh_token: str = Field(
-        ...,
-        description="Refresh token.",
-    )
+    refresh_token: str
 
-    token_type: str = Field(
-        default="bearer",
-        description="Authentication scheme.",
-        examples=["bearer"],
-    )
-
-    expires_in: int = Field(
-        ...,
-        description="Access token expiration time (seconds).",
-        examples=[3600],
-    )
-
-
-# ==========================================================
-# Refresh Token Request
-# ==========================================================
+    token_type: str = "bearer"
 
 
 class RefreshTokenRequest(BaseModel):
     """
-    Request schema for refreshing an access token.
+    Refresh access token.
     """
 
-    refresh_token: str = Field(
-        ...,
-        description="Previously issued refresh token.",
-    )
+    refresh_token: str
 
 
-# ==========================================================
-# Refresh Token Response
-# ==========================================================
-
-
-class RefreshTokenResponse(TokenResponse):
+class RefreshTokenResponse(BaseModel):
     """
-    Response returned after successful refresh token
-    rotation.
-
-    Inherits every field from TokenResponse.
+    Returned after refreshing tokens.
     """
 
-    pass
+    access_token: str
+
+    refresh_token: str
+
+    token_type: str = "bearer"
 
 
 # ==========================================================
-# Logout Request
+# Logout
 # ==========================================================
-
 
 class LogoutRequest(BaseModel):
     """
     Logout request.
-
-    Supports:
-
-    - Current device logout
-    - Logout from every device
     """
 
-    refresh_token: str = Field(
-        ...,
-        description="Refresh token to revoke.",
-    )
-
-    logout_all_devices: bool = Field(
-        default=False,
-        description="Whether to revoke every active session.",
-    )
-    
-    # ==========================================================
-# User Profile Update
-# ==========================================================
-
-
-class UserUpdate(BaseModel):
-    """
-    Request schema for updating the authenticated user's profile.
-
-    Only profile fields are editable by the user.
-    Administrative fields are handled separately.
-    """
-
-    email: EmailStr | None = Field(
-        default=None,
-        description="Updated email address.",
-        examples=["john.doe@example.com"],
-    )
-
-
-# ==========================================================
-# User Role Update (Admin Only)
-# ==========================================================
-
-
-class UserRoleUpdate(BaseModel):
-    """
-    Request schema for updating a user's role.
-
-    Accessible only to administrators.
-    """
-
-    role: Literal["ADMIN", "MEMBER"] = Field(
-        ...,
-        description="New role assigned to the user.",
-        examples=["MEMBER"],
-    )
-
-
-# ==========================================================
-# User Status Update (Admin Only)
-# ==========================================================
-
-
-class UserStatusUpdate(BaseModel):
-    """
-    Request schema for activating or deactivating
-    a user account.
-
-    Accessible only to administrators.
-    """
-
-    is_active: bool = Field(
-        ...,
-        description="Whether the account should remain active.",
-        examples=[True],
-    )
-
-
-# ==========================================================
-# User Response
-# ==========================================================
-
-
-class UserResponse(BaseModel):
-    """
-    Standard user response returned by the API.
-    """
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(
-        ...,
-        description="Unique user identifier.",
-        examples=[1],
-    )
-
-    email: EmailStr = Field(
-        ...,
-        description="User email address.",
-    )
-
-    role: Literal["ADMIN", "MEMBER"] = Field(
-        ...,
-        description="User role.",
-        examples=["MEMBER"],
-    )
-
-    is_active: bool = Field(
-        ...,
-        description="Whether the account is active.",
-        examples=[True],
-    )
-
-    last_login: datetime | None = Field(
-        default=None,
-        description="Timestamp of the user's last successful login.",
-    )
-
-    created_at: datetime = Field(
-        ...,
-        description="Timestamp when the account was created.",
-    )
-
-    updated_at: datetime = Field(
-        ...,
-        description="Timestamp when the account was last updated.",
-    )
-
-
-# ==========================================================
-# User Summary
-# ==========================================================
-
-
-class UserSummary(BaseModel):
-    """
-    Lightweight user representation.
-
-    Useful inside nested API responses,
-    activity logs and audit records.
-    """
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(
-        ...,
-        description="Unique user identifier.",
-        examples=[1],
-    )
-
-    email: EmailStr = Field(
-        ...,
-        description="User email address.",
-    )
-
-    role: Literal["ADMIN", "MEMBER"] = Field(
-        ...,
-        description="User role.",
-    )
-
-
-# ==========================================================
-# Current Authenticated User
-# ==========================================================
-
-
-class CurrentUser(BaseModel):
-    """
-    User information extracted from the validated JWT.
-
-    Used internally by:
-
-    - Authentication dependencies
-    - Authorization
-    - RBAC
-    - Ownership validation
-    - Service layer
-    """
-
-    user_id: int = Field(
-        ...,
-        description="Authenticated user identifier.",
-    )
-
-    email: EmailStr = Field(
-        ...,
-        description="Authenticated user email.",
-    )
-
-    role: Literal["ADMIN", "MEMBER"] = Field(
-        ...,
-        description="Authenticated user role.",
-    )
-
-    is_active: bool = Field(
-        ...,
-        description="Whether the authenticated account is active.",
-    )
-
-    permissions: list[str] = Field(
-        default_factory=list,
-        description="Future RBAC permissions.",
-        examples=[["notes:read", "notes:create"]],
-    )
-
-
-# ==========================================================
-# User Status Response
-# ==========================================================
-
-
-class UserStatusResponse(BaseModel):
-    """
-    Response returned after changing
-    a user's account status.
-    """
-
-    success: bool = Field(
-        default=True,
-        description="Whether the operation succeeded.",
-    )
-
-    user_id: int = Field(
-        ...,
-        description="Affected user identifier.",
-    )
-
-    is_active: bool = Field(
-        ...,
-        description="Current account status.",
-    )
-
-    message: str = Field(
-        ...,
-        description="Operation result message.",
-        examples=["User account updated successfully."],
-    )
-    
-    # ==========================================================
-# Change Password
-# ==========================================================
-
-
-class ChangePasswordRequest(BaseModel):
-    """
-    Request schema for changing the authenticated
-    user's password.
-    """
-
-    current_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="Current account password.",
-    )
-
-    new_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="New account password.",
-        examples=["MyNewStrongPassword123!"],
-    )
+    refresh_token: str
 
 
 # ==========================================================
 # Forgot Password
 # ==========================================================
 
-
 class ForgotPasswordRequest(BaseModel):
     """
-    Request schema for initiating password reset.
+    Forgot password request.
     """
 
-    email: EmailStr = Field(
-        ...,
-        description="Registered email address.",
-        examples=["john.doe@example.com"],
-    )
+    email: EmailStr
 
 
 # ==========================================================
 # Reset Password
 # ==========================================================
 
-
 class ResetPasswordRequest(BaseModel):
     """
-    Request schema for resetting a forgotten password.
+    Reset password request.
     """
 
-    token: str = Field(
-        ...,
-        description="Password reset token.",
-    )
+    token: str
 
     new_password: str = Field(
         ...,
         min_length=8,
         max_length=128,
-        description="New password.",
     )
 
 
@@ -479,190 +149,95 @@ class ResetPasswordRequest(BaseModel):
 # Email Verification
 # ==========================================================
 
-
 class VerifyEmailRequest(BaseModel):
     """
-    Request schema for verifying a user's email.
+    Verify email request.
     """
 
-    token: str = Field(
-        ...,
-        description="Email verification token.",
-    )
+    token: str
 
 
 class ResendVerificationRequest(BaseModel):
     """
-    Request schema for resending
-    the email verification link.
+    Resend verification email.
     """
 
-    email: EmailStr = Field(
-        ...,
-        description="Registered email address.",
-    )
+    email: EmailStr
+
+
+# ==========================================================
+# User Response
+# ==========================================================
+
+class UserResponse(BaseModel):
+    """
+    Standard user response.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+
+    email: EmailStr
+
+    role: Literal["ADMIN", "MEMBER"]
+
+    is_active: bool
+
+    is_verified: bool
+
+    created_at: datetime
+
+    updated_at: datetime
+
+
+# ==========================================================
+# Current Authenticated User
+# ==========================================================
+
+class CurrentUser(BaseModel):
+    """
+    Authenticated user context.
+    """
+
+    user_id: int
+
+    email: EmailStr
+
+    role: Literal["ADMIN", "MEMBER"]
 
 
 # ==========================================================
 # Shared JWT Payload
 # ==========================================================
 
-
 class TokenPayload(BaseModel):
     """
-    Shared JWT payload contract between
-    FastAPI and NestJS.
-
-    FastAPI:
-        - Issues JWT
-
-    NestJS:
-        - Validates JWT
+    JWT payload shared with NestJS.
     """
 
-    sub: str = Field(
-        ...,
-        description="Authenticated user identifier.",
-        examples=["1"],
-    )
+    sub: str
 
-    email: EmailStr = Field(
-        ...,
-        description="Authenticated user email.",
-    )
+    email: EmailStr
 
-    role: Literal["ADMIN", "MEMBER"] = Field(
-        ...,
-        description="Authenticated user role.",
-    )
+    role: Literal["ADMIN", "MEMBER"]
 
-    aud: str = Field(
-        ...,
-        description="JWT audience.",
-        examples=["team-productivity-users"],
-    )
+    aud: str
 
-    type: Literal["access", "refresh"] = Field(
-        ...,
-        description="JWT token type.",
-        examples=["access"],
-    )
+    type: str
 
-    exp: int = Field(
-        ...,
-        description="Expiration timestamp.",
-    )
+    exp: int
 
 
 # ==========================================================
-# Session Response
+# Generic Message Response
 # ==========================================================
 
-
-class SessionResponse(BaseModel):
+class MessageResponse(BaseModel):
     """
-    Represents an active authenticated session.
-
-    Future use:
-    - Multi-device login
-    - Session management
-    - Security dashboard
+    Generic success response.
     """
 
-    session_id: str = Field(
-        ...,
-        description="Unique session identifier.",
-    )
+    success: bool = True
 
-    device: str | None = Field(
-        default=None,
-        description="Client device.",
-        examples=["Windows Desktop"],
-    )
-
-    ip_address: str | None = Field(
-        default=None,
-        description="Client IP address.",
-        examples=["192.168.1.100"],
-    )
-
-    last_activity: datetime = Field(
-        ...,
-        description="Last activity timestamp.",
-    )
-
-    current: bool = Field(
-        default=False,
-        description="Whether this is the current session.",
-    )
-
-
-# ==========================================================
-# Revoke Session
-# ==========================================================
-
-
-class RevokeSessionRequest(BaseModel):
-    """
-    Request schema for revoking
-    an active session.
-    """
-
-    session_id: str = Field(
-        ...,
-        description="Session identifier to revoke.",
-    )
-
-
-# ==========================================================
-# User Statistics
-# ==========================================================
-
-
-class UserStatistics(BaseModel):
-    """
-    User statistics for dashboards,
-    administration and analytics.
-    """
-
-    total_users: int = Field(
-        ...,
-        description="Total registered users.",
-        examples=[250],
-    )
-
-    active_users: int = Field(
-        ...,
-        description="Total active users.",
-        examples=[240],
-    )
-
-    inactive_users: int = Field(
-        ...,
-        description="Total inactive users.",
-        examples=[10],
-    )
-
-    verified_users: int = Field(
-        ...,
-        description="Users with verified email addresses.",
-        examples=[225],
-    )
-
-    admin_users: int = Field(
-        ...,
-        description="Total administrators.",
-        examples=[5],
-    )
-
-    member_users: int = Field(
-        ...,
-        description="Total members.",
-        examples=[245],
-    )
-
-    new_users_today: int = Field(
-        ...,
-        description="Users registered today.",
-        examples=[12],
-    )
+    message: str
