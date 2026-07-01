@@ -5,7 +5,7 @@ def success_response(
     *,
     message: str,
     data: Any = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Standard success response.
     """
@@ -14,14 +14,15 @@ def success_response(
         "success": True,
         "message": message,
         "data": data,
+        "errors": [], 
     }
 
 
 def error_response(
     *,
     message: str,
-    errors: list | None = None,
-) -> dict:
+    errors: list[Any] | None = None,
+) -> dict[str, Any]:
     """
     Standard error response.
     """
@@ -29,7 +30,8 @@ def error_response(
     return {
         "success": False,
         "message": message,
-        "errors": errors or [],
+        "data": None,
+        "errors": errors or [], 
     }
 
 
@@ -37,15 +39,15 @@ def paginated_response(
     *,
     message: str,
     data: Any,
-    pagination: dict,
-) -> dict:
+    pagination: dict[str, Any],
+) -> dict[str, Any]:
     """
     Standard paginated response.
     """
-
     return {
         "success": True,
         "message": message,
         "data": data,
-        "pagination": pagination,
+        "errors": [],
+        "pagination": pagination, 
     }

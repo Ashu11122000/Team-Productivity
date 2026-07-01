@@ -25,11 +25,12 @@ from app.core.config import settings
 
 engine = create_engine(
     settings.DATABASE_URL,
-    echo = settings.DATABASE_ECHO,
-    pool_pre_ping = True,
-    pool_size = 10,
-    max_overflow = 20,
-    pool_recycle = 3600,
+    echo=settings.DATABASE_ECHO,
+    pool_pre_ping=True,
+    pool_size=getattr(settings, "DATABASE_POOL_SIZE", 10),
+    max_overflow=getattr(settings, "DATABASE_MAX_OVERFLOW", 20),
+    pool_timeout=getattr(settings, "DATABASE_POOL_TIMEOUT", 30),
+    pool_recycle=getattr(settings, "DATABASE_POOL_RECYCLE", 3600),
     future = True,
 )
 
@@ -58,4 +59,4 @@ def get_db() -> Generator[Session, None, None]:
     finally: 
         db.close()
     
-    
+__all__ = ["engine", "SessionLocal", "get_db"]

@@ -22,9 +22,11 @@ These functions are intentionally framework-agnostic so they
 can later be scheduled using Celery Beat, APScheduler,
 Cron, or another task scheduler.
 """
-
+from collections.abc import Callable
+from typing import Final
 from app.core.logging import logger
 
+TASKS: Final[tuple[Callable[[], None], ...]] = ()
 
 def cleanup_expired_password_reset_tokens() -> None:
     """
@@ -80,20 +82,43 @@ def run_all_cleanup_tasks() -> None:
     """
     Execute all cleanup tasks.
 
-    This function can later be invoked by a scheduler
-    as a single maintenance job.
+    This function can later be invoked by APScheduler,
+    Celery Beat, Cron, or another scheduler.
     """
 
-    logger.info(
-        "Starting scheduled cleanup tasks."
+    logger.info("Starting scheduled cleanup tasks.")
+
+    tasks: tuple[Callable[[], None], ...] = (
+        cleanup_expired_password_reset_tokens,
+        cleanup_expired_email_verification_tokens,
+        cleanup_expired_sessions,
+        cleanup_archived_notifications,
+        cleanup_temporary_uploads,
     )
 
-    cleanup_expired_password_reset_tokens()
-    cleanup_expired_email_verification_tokens()
-    cleanup_expired_sessions()
-    cleanup_archived_notifications()
-    cleanup_temporary_uploads()
+    completed = 0
+
+    for task in tasks:
+        try:
+            task()
+            completed += 1
+        except Exception:
+            logger.exception(
+                "Cleanup task failed.",
+                task=task.__name__,
+            )
 
     logger.info(
-        "Cleanup tasks completed."
+        "Cleanup tasks completed.",
+        completed_tasks=completed,
+        total_tasks=len(tasks),
     )
+    
+    __all__ = [
+    "cleanup_expired_password_reset_tokens",
+    "cleanup_expired_email_verification_tokens",
+    "cleanup_expired_sessions",
+    "cleanup_archived_notifications",
+    "cleanup_temporary_uploads",
+    "run_all_cleanup_tasks",
+]

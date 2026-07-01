@@ -28,10 +28,15 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import uuid
+import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import HTTPException, status
+from app.core.constants import (ACCESS_TOKEN, REFRESH_TOKEN)
+from app.core.exceptions import InvalidTokenException
+
+from fastapi import status
 from jose import JWTError, jwt
 from pwdlib import PasswordHash
 
@@ -92,10 +97,12 @@ def _base_payload(
         "email": email,
         "role": role,
         "type": token_type,
+        "jti": str(uuid.uuid4()),
         "iss": settings.JWT_ISSUER,
         "aud": settings.JWT_AUDIENCE,
         "iat": now,
-        "exp": now + expires_delta,
+        "nbf": now,
+        "exp": now + expires_delta, 
     }
 
 
@@ -118,7 +125,7 @@ def create_access_token(
         user_id=user_id,
         email=email,
         role=role,
-        token_type="access",
+        token_type=ACCESS_TOKEN,
         expires_delta=timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         ),
@@ -147,19 +154,13 @@ def decode_access_token(
             audience=settings.JWT_AUDIENCE,
         )
 
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid access token type.",
-            )
+        if payload.get("type") != ACCESS_TOKEN:
+            raise InvalidTokenException()
 
         return payload
 
     except JWTError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token.",
-        ) from exc
+        raise InvalidTokenException() from exc
 
 
 # ==========================================================
@@ -187,7 +188,7 @@ def create_refresh_token(
         user_id=user_id,
         email=email,
         role=role,
-        token_type="refresh",
+        token_type=REFRESH_TOKEN,
         expires_delta=timedelta(
             days=settings.REFRESH_TOKEN_EXPIRE_DAYS,
         ),
@@ -225,19 +226,13 @@ def decode_refresh_token(
             audience=settings.JWT_AUDIENCE,
         )
 
-        if payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token type.",
-            )
+        if payload.get("type") != REFRESH_TOKEN:
+            raise InvalidTokenException()
 
         return payload
 
     except JWTError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token.",
-        ) from exc
+        raise InvalidTokenException() from exc
 
 
 # ==========================================================
@@ -289,9 +284,9 @@ def verify_refresh_token_hash(
     Verify a refresh token against its stored hash.
     """
 
-    return (
-        hash_refresh_token(refresh_token)
-        == stored_hash
+    return hmac.compare_digest(
+        hash_refresh_token(refresh_token),
+        stored_hash,
     )
 
 
@@ -311,10 +306,7 @@ def get_token_expiration(
     exp = payload.get("exp")
 
     if exp is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token does not contain an expiration claim.",
-        )
+        raise InvalidTokenException()
 
     if isinstance(exp, datetime):
         return exp.astimezone(timezone.utc)
