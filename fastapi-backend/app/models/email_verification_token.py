@@ -1,24 +1,23 @@
 """
-Refresh token model.
+Email verification token model.
 
 Responsibilities:
-- Store hashed refresh tokens.
-- Support refresh token rotation.
-- Enable logout from a single device.
-- Enable logout from all devices.
-- Allow secure token revocation.
-- Support future device/session tracking.
+- Store hashed email verification tokens.
+- Verify newly registered users.
+- Support email verification token expiration.
+- Prevent token reuse.
+- Allow secure email verification flow.
 
 Architecture:
 
 User
-│
-└──────────────► RefreshToken
-                    │
-                    ├── Rotation
-                    ├── Revocation
-                    ├── Expiration
-                    └── Future Device Tracking
+ │
+ └──────────────► EmailVerificationToken
+                      │
+                      ├── Token Hash
+                      ├── Expiration
+                      ├── Verification Status
+                      └── One-time Use
 """
 
 from __future__ import annotations
@@ -26,7 +25,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -36,18 +42,18 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class RefreshToken(Base, BaseModelMixin):
+class EmailVerificationToken(Base, BaseModelMixin):
     """
-    Stores hashed refresh tokens for secure authentication.
+    Stores hashed email verification tokens.
     """
 
-    __tablename__ = "refresh_tokens"
+    __tablename__ = "email_verification_tokens"
 
     __table_args__ = (
-        Index("idx_refresh_token_user", "user_id"),
-        Index("idx_refresh_token_hash", "token_hash"),
-        Index("idx_refresh_token_expires", "expires_at"),
-        Index("idx_refresh_token_revoked", "is_revoked"),
+        Index("idx_email_verification_user", "user_id"),
+        Index("idx_email_verification_hash", "token_hash"),
+        Index("idx_email_verification_expires", "expires_at"),
+        Index("idx_email_verification_used", "is_used"),
     )
 
     # ------------------------------------------------------------------
@@ -83,20 +89,23 @@ class RefreshToken(Base, BaseModelMixin):
 
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc) + timedelta(days=7),
+        default=lambda: datetime.now(timezone.utc) + timedelta(hours=24),
         nullable=False,
     )
 
-    is_revoked: Mapped[bool] = mapped_column(
+    # ------------------------------------------------------------------
+    # Verification Status
+    # ------------------------------------------------------------------
+
+    is_used: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
     )
 
-    revoked_at: Mapped[datetime | None] = mapped_column(
+    verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        default=None,
     )
 
     # ------------------------------------------------------------------
@@ -105,7 +114,7 @@ class RefreshToken(Base, BaseModelMixin):
 
     user: Mapped["User"] = relationship(
         "User",
-        back_populates="refresh_tokens",
+        back_populates="email_verification_tokens",
         lazy="selectin",
     )
 
@@ -116,27 +125,27 @@ class RefreshToken(Base, BaseModelMixin):
     @property
     def is_expired(self) -> bool:
         """
-        Return True if the refresh token has expired.
+        Return True if the verification token has expired.
         """
         return datetime.now(timezone.utc) >= self.expires_at
 
     @property
     def is_valid(self) -> bool:
         """
-        Return True if the token is active and not expired.
+        Return True if the token is usable.
         """
-        return not self.is_revoked and not self.is_expired
+        return not self.is_used and not self.is_expired
 
     # ------------------------------------------------------------------
     # Helper Methods
     # ------------------------------------------------------------------
 
-    def revoke(self) -> None:
+    def mark_used(self) -> None:
         """
-        Revoke the refresh token.
+        Mark the verification token as used.
         """
-        self.is_revoked = True
-        self.revoked_at = datetime.now(timezone.utc)
+        self.is_used = True
+        self.verified_at = datetime.now(timezone.utc)
 
     # ------------------------------------------------------------------
     # Object Representation
@@ -144,9 +153,12 @@ class RefreshToken(Base, BaseModelMixin):
 
     def __repr__(self) -> str:
         return (
-            f"<RefreshToken("
+            f"<EmailVerificationToken("
             f"id={self.id}, "
             f"user_id={self.user_id}, "
-            f"revoked={self.is_revoked}"
+            f"used={self.is_used}"
             f")>"
         )
+
+    def __str__(self) -> str:
+        return f"EmailVerificationToken({self.id})"
