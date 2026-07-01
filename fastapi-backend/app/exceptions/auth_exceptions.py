@@ -8,14 +8,20 @@ converted into HTTP responses by the global exception handlers.
 
 class AuthenticationException(Exception):
     """Base exception for all authentication errors."""
+    default_message = "Authentication error."
+
+    def __init__(self, message: str | None = None) -> None:
+        super().__init__(message or self.default_message)
 
 
 class InvalidCredentialsException(AuthenticationException):
     """Raised when email or password is incorrect."""
+    default_message = "Invalid email or password."
 
 
 class InvalidTokenException(AuthenticationException):
     """Raised when a JWT is invalid."""
+    
 
 
 class ExpiredTokenException(AuthenticationException):
@@ -48,3 +54,17 @@ class EmailVerificationException(AuthenticationException):
 
 class PasswordResetException(AuthenticationException):
     """Raised when password reset fails."""
+    
+__all__ = [
+    "AuthenticationException",
+    "InvalidCredentialsException",
+    "InvalidTokenException",
+    "ExpiredTokenException",
+    "RefreshTokenException",
+    "UnauthorizedException",
+    "ForbiddenException",
+    "InactiveUserException",
+    "EmailAlreadyVerifiedException",
+    "EmailVerificationException",
+    "PasswordResetException",
+]

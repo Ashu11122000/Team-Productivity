@@ -18,10 +18,13 @@ import ssl
 
 from app.core.config import settings
 from app.core.logging import logger
+from typing import Final
 
 
 class EmailClient:
     """SMTP email client."""
+    
+    DEFAULT_TIMEOUT: Final[int] = 30
 
     @staticmethod
     def send_email(
@@ -44,6 +47,13 @@ class EmailClient:
             True if email was sent successfully.
         """
 
+        if not settings.EMAIL_ENABLED:
+            logger.warning(
+                "Email sending is disabled.",
+                recipient = recipient,
+            )
+            return False
+        
         message = EmailMessage()
 
         message["From"] = settings.MAIL_FROM
@@ -59,17 +69,21 @@ class EmailClient:
             context = ssl.create_default_context()
 
             with smtplib.SMTP(
-                settings.MAIL_SERVER,
-                settings.MAIL_PORT,
+                host = settings.MAIL_SERVER,
+                port = settings.MAIL_PORT,
+                timeout = EmailClient.DEFAULT_TIMEOUT,
             ) as smtp:
 
                 if settings.MAIL_STARTTLS:
+                    smtp.ehlo()
                     smtp.starttls(context=context)
-
-                smtp.login(
-                    settings.MAIL_USERNAME,
-                    settings.MAIL_PASSWORD,
-                )
+                    smtp.ehlo()
+                
+                if settings.MAIL_USERNAME:
+                    smtp.login(
+                        settings.MAIL_USERNAME,
+                        settings.MAIL_PASSWORD,
+                    )
 
                 smtp.send_message(message)
 
@@ -77,15 +91,27 @@ class EmailClient:
                 "Email sent successfully.",
                 recipient=recipient,
                 subject=subject,
+                provider=settings.MAIL_SERVER
             )
 
             return True
 
-        except Exception as exc:
+        except smtplib.Exception as exc:
             logger.exception(
-                "Failed to send email.",
+                "SMTP error while sending email.",
                 recipient=recipient,
+                subject=subject,
                 error=str(exc),
             )
 
+            return False
+        
+        except Exception as exc:
+            logger.exception(
+                "Unexpected email sending error.",
+                recipient=recipient,
+                subject=subject,
+                error=str(exc),
+            )
+            
             return False
