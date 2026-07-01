@@ -1,19 +1,38 @@
-from datetime import datetime, timezone
+"""
+Book reference model.
 
-from sqlalchemy import Column, DateTime, Index, Integer, String
+Stores cached metadata from the Open Library API.
+
+Responsibilities:
+- Cache Open Library search results.
+- Reduce external API requests.
+- Store book metadata for notes.
+- Support future analytics and recommendations.
+- Enable linking notes to books.
+
+Architecture:
+
+Open Library API
+        │
+        ▼
+BookReference
+        │
+        ▼
+Notes / Analytics / Search
+"""
+
+from __future__ import annotations
+
+from sqlalchemy import Index, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.models.base_model import BaseModelMixin
 
 
-class BookReference(Base):
+class BookReference(Base, BaseModelMixin):
     """
     Cached Open Library book information.
-
-    Purpose:
-    - Reduce repeated Open Library API calls
-    - Store metadata for referenced books
-    - Link notes to books
-    - Enable future analytics and search
     """
 
     __tablename__ = "book_references"
@@ -22,84 +41,76 @@ class BookReference(Base):
         Index("idx_book_reference_work_key", "work_key"),
         Index("idx_book_reference_title", "title"),
         Index("idx_book_reference_author", "author"),
+        Index("idx_book_reference_isbn", "isbn"),
+        Index("idx_book_reference_publish_year", "publish_year"),
     )
 
-    id = Column(
+    id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        index=True,
     )
 
+    # -------------------------------------------------------------------------
     # Open Library identifiers
+    # -------------------------------------------------------------------------
 
-    work_key = Column(
+    work_key: Mapped[str] = mapped_column(
         String(100),
         unique=True,
         nullable=False,
     )
 
-    edition_key = Column(
+    edition_key: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
     )
 
-    isbn = Column(
+    isbn: Mapped[str | None] = mapped_column(
         String(20),
         nullable=True,
     )
 
+    # -------------------------------------------------------------------------
     # Book metadata
+    # -------------------------------------------------------------------------
 
-    title = Column(
+    title: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
     )
 
-    author = Column(
+    author: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
 
-    publisher = Column(
+    publisher: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
 
-    publish_year = Column(
+    publish_year: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
     )
 
-    language = Column(
+    language: Mapped[str | None] = mapped_column(
         String(20),
         nullable=True,
     )
 
-    cover_id = Column(
+    cover_id: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
     )
 
-    created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-
-    updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-
     def __repr__(self) -> str:
         return (
-            f"BookReference("
+            f"<BookReference("
             f"id={self.id}, "
-            f"title='{self.title}', "
-            f"work_key='{self.work_key}'"
-            f")"
+            f"title={self.title!r}, "
+            f"work_key={self.work_key!r}"
+            f")>"
         )
 
     def __str__(self) -> str:

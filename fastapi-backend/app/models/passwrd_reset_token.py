@@ -1,24 +1,23 @@
 """
-Refresh token model.
+Password reset token model.
 
 Responsibilities:
-- Store hashed refresh tokens.
-- Support refresh token rotation.
-- Enable logout from a single device.
-- Enable logout from all devices.
-- Allow secure token revocation.
-- Support future device/session tracking.
+- Store hashed password reset tokens.
+- Support secure password reset workflow.
+- Prevent token reuse.
+- Handle token expiration.
+- Maintain audit history for reset requests.
 
 Architecture:
 
 User
-│
-└──────────────► RefreshToken
-                    │
-                    ├── Rotation
-                    ├── Revocation
-                    ├── Expiration
-                    └── Future Device Tracking
+ │
+ └──────────────► PasswordResetToken
+                      │
+                      ├── Token Hash
+                      ├── Expiration
+                      ├── One-time Use
+                      └── Reset History
 """
 
 from __future__ import annotations
@@ -26,7 +25,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -36,18 +42,18 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class RefreshToken(Base, BaseModelMixin):
+class PasswordResetToken(Base, BaseModelMixin):
     """
-    Stores hashed refresh tokens for secure authentication.
+    Stores hashed password reset tokens.
     """
 
-    __tablename__ = "refresh_tokens"
+    __tablename__ = "password_reset_tokens"
 
     __table_args__ = (
-        Index("idx_refresh_token_user", "user_id"),
-        Index("idx_refresh_token_hash", "token_hash"),
-        Index("idx_refresh_token_expires", "expires_at"),
-        Index("idx_refresh_token_revoked", "is_revoked"),
+        Index("idx_password_reset_user", "user_id"),
+        Index("idx_password_reset_hash", "token_hash"),
+        Index("idx_password_reset_expires", "expires_at"),
+        Index("idx_password_reset_used", "is_used"),
     )
 
     # ------------------------------------------------------------------
@@ -83,17 +89,21 @@ class RefreshToken(Base, BaseModelMixin):
 
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc) + timedelta(days=7),
+        default=lambda: datetime.now(timezone.utc) + timedelta(minutes=30),
         nullable=False,
     )
 
-    is_revoked: Mapped[bool] = mapped_column(
+    # ------------------------------------------------------------------
+    # Reset Status
+    # ------------------------------------------------------------------
+
+    is_used: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
     )
 
-    revoked_at: Mapped[datetime | None] = mapped_column(
+    used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         default=None,
@@ -105,7 +115,7 @@ class RefreshToken(Base, BaseModelMixin):
 
     user: Mapped["User"] = relationship(
         "User",
-        back_populates="refresh_tokens",
+        back_populates="password_reset_tokens",
         lazy="selectin",
     )
 
@@ -116,27 +126,27 @@ class RefreshToken(Base, BaseModelMixin):
     @property
     def is_expired(self) -> bool:
         """
-        Return True if the refresh token has expired.
+        Return True if the password reset token has expired.
         """
         return datetime.now(timezone.utc) >= self.expires_at
 
     @property
     def is_valid(self) -> bool:
         """
-        Return True if the token is active and not expired.
+        Return True if the token can still be used.
         """
-        return not self.is_revoked and not self.is_expired
+        return not self.is_used and not self.is_expired
 
     # ------------------------------------------------------------------
     # Helper Methods
     # ------------------------------------------------------------------
 
-    def revoke(self) -> None:
+    def mark_used(self) -> None:
         """
-        Revoke the refresh token.
+        Mark the password reset token as used.
         """
-        self.is_revoked = True
-        self.revoked_at = datetime.now(timezone.utc)
+        self.is_used = True
+        self.used_at = datetime.now(timezone.utc)
 
     # ------------------------------------------------------------------
     # Object Representation
@@ -144,9 +154,12 @@ class RefreshToken(Base, BaseModelMixin):
 
     def __repr__(self) -> str:
         return (
-            f"<RefreshToken("
+            f"<PasswordResetToken("
             f"id={self.id}, "
             f"user_id={self.user_id}, "
-            f"revoked={self.is_revoked}"
+            f"used={self.is_used}"
             f")>"
         )
+
+    def __str__(self) -> str:
+        return f"PasswordResetToken({self.id})"

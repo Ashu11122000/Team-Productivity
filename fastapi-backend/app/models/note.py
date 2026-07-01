@@ -1,68 +1,97 @@
-from datetime import datetime, timezone
+"""
+Note model.
+
+Responsibilities:
+- Store user notes.
+- Support personal knowledge management.
+- Integrate with Open Library references.
+- Support conversion of notes into tasks.
+- Serve Next.js, Flutter, and NestJS clients.
+
+Architecture:
+
+User
+ │
+ ├──────────────┐
+ ▼              ▼
+Note ───────► BookReference
+ │
+ ├── Future: Comments
+ ├── Future: Attachments
+ ├── Future: Favorites
+ └── Future: Activity Logs
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
-    Column,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.base_model import BaseModelMixin
+
+if TYPE_CHECKING:
+    from app.models.book_reference import BookReference
+    from app.models.user import User
 
 
-class Note(Base):
+class Note(Base, BaseModelMixin):
     """
-    Note Model.
+    User note.
 
     FastAPI Ownership:
     - Notes Management
     - Knowledge Management
-    - Open Library References
+    - Open Library Integration
 
-    Integrations:
-    - Open Library API
-    - NestJS Task Conversion
-
-    Consumed by:
+    Consumed By:
     - FastAPI
-    - Next.js Frontend
-    - Flutter Mobile Application
-    - NestJS Backend
+    - Next.js
+    - Flutter
+    - NestJS (Task Conversion)
     """
 
     __tablename__ = "notes"
 
     __table_args__ = (
         Index("idx_notes_owner_id", "owner_id"),
-        Index("idx_notes_created_at", "created_at"),
         Index("idx_notes_title", "title"),
+        Index("idx_notes_created_at", "created_at"),
+        Index("idx_notes_archived", "is_archived"),
+        Index("idx_notes_favorite", "is_favorite"),
+        Index("idx_notes_task_conversion", "is_converted_to_task"),
+        Index("idx_notes_book_reference", "book_reference_id"),
     )
 
     # ------------------------------------------------------------------
     # Primary Key
     # ------------------------------------------------------------------
 
-    id = Column(
+    id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        index=True,
     )
 
     # ------------------------------------------------------------------
     # Note Content
     # ------------------------------------------------------------------
 
-    title = Column(
+    title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )
 
-    content = Column(
+    content: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
@@ -71,8 +100,7 @@ class Note(Base):
     # Ownership
     # ------------------------------------------------------------------
 
-    owner_id = Column(
-        Integer,
+    owner_id: Mapped[int] = mapped_column(
         ForeignKey(
             "users.id",
             ondelete="CASCADE",
@@ -84,8 +112,11 @@ class Note(Base):
     # Open Library Integration
     # ------------------------------------------------------------------
 
-    book_reference_id = Column(
-        String(100),
+    book_reference_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "book_references.id",
+            ondelete="SET NULL",
+        ),
         nullable=True,
     )
 
@@ -93,48 +124,29 @@ class Note(Base):
     # Note Status
     # ------------------------------------------------------------------
 
-    is_converted_to_task = Column(
+    is_converted_to_task: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
     )
 
-    is_archived = Column(
+    is_archived: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
     )
 
-    is_favorite = Column(
+    is_favorite: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,
     )
 
     # ------------------------------------------------------------------
-    # Audit Fields
+    # Activity
     # ------------------------------------------------------------------
 
-    created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-
-    updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-
-    deleted_at = Column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-
-    last_viewed_at = Column(
-        DateTime(timezone=True),
+    last_viewed_at: Mapped[datetime | None] = mapped_column(
         nullable=True,
     )
 
@@ -142,21 +154,68 @@ class Note(Base):
     # Relationships
     # ------------------------------------------------------------------
 
-    owner = relationship(
+    owner: Mapped["User"] = relationship(
         "User",
         back_populates="notes",
+        lazy="selectin",
     )
+
+    book_reference: Mapped["BookReference | None"] = relationship(
+        "BookReference",
+        lazy="selectin",
+    )
+
+    # ------------------------------------------------------------------
+    # Helper Methods
+    # ------------------------------------------------------------------
+
+    def mark_as_converted(self) -> None:
+        """
+        Mark this note as converted into a task.
+        """
+        self.is_converted_to_task = True
+
+    def archive(self) -> None:
+        """
+        Archive the note.
+        """
+        self.is_archived = True
+
+    def unarchive(self) -> None:
+        """
+        Restore an archived note.
+        """
+        self.is_archived = False
+
+    def mark_as_favorite(self) -> None:
+        """
+        Mark the note as favorite.
+        """
+        self.is_favorite = True
+
+    def remove_from_favorites(self) -> None:
+        """
+        Remove the note from favorites.
+        """
+        self.is_favorite = False
+
+    def update_last_viewed(self) -> None:
+        """
+        Update the last viewed timestamp.
+        """
+        self.last_viewed_at = datetime.utcnow()
 
     # ------------------------------------------------------------------
     # Object Representation
     # ------------------------------------------------------------------
+
     def __repr__(self) -> str:
         return (
-            f"Note("
+            f"<Note("
             f"id={self.id}, "
-            f"title='{self.title}', "
+            f"title={self.title!r}, "
             f"owner_id={self.owner_id}"
-            f")"
+            f")>"
         )
 
     def __str__(self) -> str:
